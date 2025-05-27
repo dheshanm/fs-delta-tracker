@@ -143,6 +143,7 @@ def execute_queries(
     """
     command = None
     output = []
+    conn: Optional[psycopg2.extensions.connection] = None  # Initialize conn to None
 
     if backup:
         repo_root = cli.get_repo_root_from_config(config_file=config_file)
@@ -159,7 +160,11 @@ def execute_queries(
 
     try:
         credentials = get_db_credentials(config_file=config_file, db=db)
-        conn: psycopg2.extensions.connection = psycopg2.connect(**credentials)  # type: ignore
+        conn = psycopg2.connect(**credentials)  # type: ignore
+
+        if conn is None:
+            raise psycopg2.DatabaseError("Failed to connect to the database.")
+
         cur = conn.cursor()
 
         def execute_query(query: str):
@@ -190,7 +195,8 @@ def execute_queries(
 
         if not silent:
             logger.debug(
-                f"[grey]Committed {len(queries)} SQL query(ies).", extra={"markup": True}
+                f"[grey]Committed {len(queries)} SQL query(ies).",
+                extra={"markup": True},
             )
     except (Exception, psycopg2.DatabaseError) as e:
         logger.error("[bold red]Error executing queries.", extra={"markup": True})
