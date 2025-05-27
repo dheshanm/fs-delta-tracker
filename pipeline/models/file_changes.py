@@ -20,8 +20,8 @@ class FileChanges(BaseModel):
 
     file_path: Path
     scan_id: Optional[int] = None
-    old_size: Optional[float] = None
-    new_size: Optional[float] = None
+    old_size: Optional[int] = None
+    new_size: Optional[int] = None
     old_mtime: Optional[datetime] = None
     new_mtime: Optional[datetime] = None
     old_fingerprint: Optional[str] = None
@@ -48,8 +48,8 @@ class FileChanges(BaseModel):
                 changes = FileChanges(
                     scan_id=new_file.last_seen_scan,
                     file_path=new_file.file_path,
-                    old_size=old_file.file_size_mb,
-                    new_size=new_file.file_size_mb,
+                    old_size=old_file.file_size_bytes,
+                    new_size=new_file.file_size_bytes,
                     old_mtime=old_file.file_mtime,
                     new_mtime=new_file.file_mtime,
                     old_fingerprint=old_file.file_fingerprint,
@@ -64,7 +64,7 @@ class FileChanges(BaseModel):
             changes = FileChanges(
                 scan_id=old_file.last_seen_scan,
                 file_path=old_file.file_path,
-                old_size=old_file.file_size_mb,
+                old_size=old_file.file_size_bytes,
                 old_mtime=old_file.file_mtime,
                 old_fingerprint=old_file.file_fingerprint,
                 change_type="deleted",
@@ -74,7 +74,7 @@ class FileChanges(BaseModel):
             changes = FileChanges(
                 scan_id=new_file.last_seen_scan,
                 file_path=new_file.file_path,
-                new_size=new_file.file_size_mb,
+                new_size=new_file.file_size_bytes,
                 new_mtime=new_file.file_mtime,
                 new_fingerprint=new_file.file_fingerprint,
                 change_type="added",
@@ -99,8 +99,8 @@ class FileChanges(BaseModel):
                     REFERENCES filesystem.scan_runs(scan_id) ON DELETE CASCADE,
                 file_path           TEXT          NOT NULL,
                 change_type         TEXT          NOT NULL,
-                old_size_mb         FLOAT        NULL,
-                new_size_mb         FLOAT        NULL,
+                old_size_bytes      BIGINT        NULL,
+                new_size_bytes      BIGINT        NULL,
                 old_mtime           TIMESTAMPTZ   NULL,
                 new_mtime           TIMESTAMPTZ   NULL,
                 old_fingerprint     TEXT          NULL,
@@ -177,8 +177,8 @@ class FileChanges(BaseModel):
                 scan_id,
                 file_path,
                 change_type,
-                old_size_mb,
-                new_size_mb,
+                old_size_bytes,
+                new_size_bytes,
                 old_mtime,
                 new_mtime,
                 old_fingerprint,

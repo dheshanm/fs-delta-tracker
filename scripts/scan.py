@@ -182,9 +182,9 @@ def finalize_scan(
     # Define a mapping from change_type to the corresponding parameter names
     # for ScanRun.finish_scan (count_param_name, size_param_name)
     change_type_to_param_names = {
-        "added": ("added_files_count", "new_data_mb"),
-        "modified": ("modified_files_count", "modified_data_mb"),
-        "deleted": ("removed_files_count", "removed_data_mb"),
+        "added": ("added_files_count", "new_data_size"),
+        "modified": ("modified_files_count", "modified_data_size"),
+        "deleted": ("removed_files_count", "removed_data_size"),
     }
 
     scan_stats: Dict[str, Any] = {}

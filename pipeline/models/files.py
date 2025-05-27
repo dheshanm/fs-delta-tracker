@@ -24,7 +24,7 @@ class File(BaseModel):
     file_path: Path
     file_name: str
     file_type: str
-    file_size_mb: float
+    file_size_bytes: int
     file_mtime: datetime
     file_fingerprint: str
     last_seen_scan: Optional[int] = None
@@ -48,7 +48,7 @@ class File(BaseModel):
         elif file_type == ".lock":  # case where .lock is the only suffix
             file_type = ".lock"
 
-        file_size_mb = file_path.stat().st_size / 1024 / 1024
+        file_size_bytes = file_path.stat().st_size
         file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
         if fingerprint is None:
             try:
@@ -62,7 +62,7 @@ class File(BaseModel):
             file_path=file_path,
             file_name=file_name,
             file_type=file_type,
-            file_size_mb=file_size_mb,
+            file_size_bytes=file_size_bytes,
             file_mtime=file_mtime,
             file_fingerprint=file_fingerprint,
         )
@@ -86,7 +86,7 @@ class File(BaseModel):
 
         if (
             new_file.file_mtime != old_data.file_mtime
-            or new_file.file_size_mb != old_data.file_size_mb
+            or new_file.file_size_bytes != old_data.file_size_bytes
         ):
             new_file.file_fingerprint = compute_fingerprint(
                 file_path=new_file.file_path
@@ -120,7 +120,7 @@ class File(BaseModel):
 
         file_name = result.iloc[0]["file_name"]
         file_type = result.iloc[0]["file_type"]
-        file_size_mb = result.iloc[0]["file_size_mb"]
+        file_size_bytes = result.iloc[0]["file_size_bytes"]
         file_mtime = result.iloc[0]["file_mtime"]
         file_fingerprint = result.iloc[0]["file_fingerprint"]
         last_seen_scan = result.iloc[0]["last_seen_scan"]
@@ -129,7 +129,7 @@ class File(BaseModel):
             file_path=file_path,
             file_name=file_name,
             file_type=file_type,
-            file_size_mb=file_size_mb,
+            file_size_bytes=file_size_bytes,
             file_mtime=file_mtime,
             file_fingerprint=file_fingerprint,
             last_seen_scan=last_seen_scan,
@@ -150,7 +150,7 @@ class File(BaseModel):
         CREATE TABLE IF NOT EXISTS filesystem.files (
             file_name TEXT NOT NULL,
             file_type TEXT NOT NULL,
-            file_size_mb FLOAT NOT NULL,
+            file_size_bytes BIGINT NOT NULL,
             file_path TEXT PRIMARY KEY,
             file_mtime TIMESTAMPTZ NOT NULL,
             file_fingerprint TEXT NOT NULL,
@@ -197,18 +197,18 @@ class File(BaseModel):
 
         sql_query = f"""
         INSERT INTO filesystem.files (
-            file_name, file_type, file_size_mb, 
+            file_name, file_type, file_size_bytes,
             file_path, file_mtime, file_fingerprint,
             last_seen_scan, last_updated
         ) VALUES (
-            '{f_name}', '{self.file_type}', {self.file_size_mb},
+            '{f_name}', '{self.file_type}', {self.file_size_bytes},
             '{f_path}', '{self.file_mtime}', '{self.file_fingerprint}',
             {self.last_seen_scan}, now()
         )
         ON CONFLICT (file_path) DO UPDATE
         SET file_name = EXCLUDED.file_name,
             file_type = EXCLUDED.file_type,
-            file_size_mb = EXCLUDED.file_size_mb,
+            file_size_bytes = EXCLUDED.file_size_bytes,
             file_mtime = EXCLUDED.file_mtime,
             file_fingerprint = EXCLUDED.file_fingerprint,
             last_seen_scan = EXCLUDED.last_seen_scan,
