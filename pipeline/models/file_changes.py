@@ -103,8 +103,6 @@ class FileChanges(BaseModel):
                 new_size_bytes      BIGINT        NULL,
                 old_mtime           TIMESTAMPTZ   NULL,
                 new_mtime           TIMESTAMPTZ   NULL,
-                old_fingerprint     TEXT          NULL,
-                new_fingerprint     TEXT          NULL,
                 recorded_at         TIMESTAMPTZ   NOT NULL DEFAULT now(),
                 path_ltree ltree GENERATED ALWAYS AS (
                     filesystem.text_to_ltree(file_path)

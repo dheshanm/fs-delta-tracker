@@ -27,8 +27,7 @@ deleted AS (
         f.file_name AS old_file_name,
         f.file_type AS old_file_type,
         f.file_size_bytes AS old_size,
-        f.file_mtime AS old_mtime,
-        f.file_fingerprint AS old_fp
+        f.file_mtime AS old_mtime
 ),
 ins_deleted AS (
     INSERT INTO
@@ -37,16 +36,14 @@ ins_deleted AS (
             file_path,
             change_type,
             old_size_bytes,
-            old_mtime,
-            old_fingerprint
+            old_mtime
         )
     SELECT
         :scan_id,
         file_path,
         'deleted',
         old_size,
-        old_mtime,
-        old_fp
+        old_mtime
     FROM
         deleted
 ),
@@ -88,8 +85,7 @@ ins_new AS (
         nf.file_size_bytes,
         nf.file_path,
         nf.file_mtime,
-        '' :: text,
-        -- blank fingerprint
+        NULL, -- fingerprint is not known yet
         :scan_id
     FROM
         new_files nf RETURNING file_path,
@@ -125,8 +121,7 @@ mod AS (
         f.file_name AS old_file_name,
         f.file_type AS old_file_type,
         f.file_size_bytes AS old_size,
-        f.file_mtime AS old_mtime,
-        f.file_fingerprint AS old_fp
+        f.file_mtime AS old_mtime
     FROM
         filesystem.staging_files s
         JOIN filesystem.files f USING (file_path)
@@ -146,8 +141,7 @@ ins_mod AS (
             old_size_bytes,
             new_size_bytes,
             old_mtime,
-            new_mtime,
-            old_fingerprint
+            new_mtime
         )
     SELECT
         :scan_id,
@@ -156,8 +150,7 @@ ins_mod AS (
         old_size,
         new_size,
         old_mtime,
-        new_mtime,
-        old_fp
+        new_mtime
     FROM
         mod
 ),
