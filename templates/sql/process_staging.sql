@@ -163,6 +163,7 @@ upd_mod AS (
         file_size_bytes = m.new_size,
         file_mtime = m.new_mtime,
         last_seen_scan = :scan_id,
+        file_fingerprint = NULL, -- fingerprint should be recalculated
         last_updated = now()
     FROM
         mod m
