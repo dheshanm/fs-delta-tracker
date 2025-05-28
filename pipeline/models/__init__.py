@@ -9,6 +9,7 @@ from pipeline.helpers import db
 from pipeline.models.scans import ScanRun
 from pipeline.models.file_changes import FileChanges
 from pipeline.models.files import File
+from pipeline.models.staging_files import StagingFile
 
 
 def flatten_list(coll: list) -> list:
@@ -60,12 +61,14 @@ def init_db(config_file: Path):
         FileChanges.drop_table_query(),
         File.drop_table_query(),
         ScanRun.drop_table_query(),
+        StagingFile.drop_table_query(),
     ]
 
     create_queries_l: List[Union[str, List[str]]] = [
         ScanRun.init_table_query(),
         File.init_table_query(),
         FileChanges.init_table_query(),
+        StagingFile.init_table_query(),
     ]
 
     schema_queries = init_schema()

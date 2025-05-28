@@ -106,7 +106,9 @@ class FileChanges(BaseModel):
                 old_fingerprint     TEXT          NULL,
                 new_fingerprint     TEXT          NULL,
                 recorded_at         TIMESTAMPTZ   NOT NULL DEFAULT now(),
-                
+                path_ltree ltree GENERATED ALWAYS AS (
+                    filesystem.text_to_ltree(file_path)
+                ) STORED,
                 PRIMARY KEY (scan_id, file_path)
             );
         """
@@ -241,7 +243,7 @@ class FileChanges(BaseModel):
         scan_id: int,
         change_type: str,  # 'added', 'modified', or 'deleted'
         config_file: Path,
-    ) -> float:
+    ) -> int:
         """
         Get the total size of files by change type for a specific scan.
 
@@ -251,11 +253,12 @@ class FileChanges(BaseModel):
             scan_id (int): The ID of the scan.
             config_file (Path): The path to the configuration file.
         Returns:
-            float: The total size of files with the specified change type for the given scan ID.
+            float: The total size of files (in bytes) with the specified
+                change type for the given scan ID.
         """
 
         sql_query = f"""
-            SELECT SUM(new_size_mb) FROM filesystem.file_changes
+            SELECT SUM(new_size_bytes) FROM filesystem.file_changes
             WHERE scan_id = {scan_id} AND change_type = '{change_type}';
         """
 
@@ -264,8 +267,8 @@ class FileChanges(BaseModel):
             query=sql_query,
         )
 
-        if result is None or result == 'None':
-            return 0.0
+        if result is None or result == "None":
+            return 0
 
-        total_size = float(result)
+        total_size = int(float(result))
         return total_size

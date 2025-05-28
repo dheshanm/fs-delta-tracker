@@ -7,7 +7,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, Literal, Optional
+from typing import Any, Callable, Dict, Literal, Optional
 
 import pandas as pd
 import psycopg2
@@ -314,3 +314,24 @@ def df_to_table(
     engine = get_db_connection(config_file=config_file)
     df.to_sql(table_name, engine, if_exists=if_exists, index=False)
     engine.dispose()
+
+
+def render_sql_template(
+    template_path: Path,
+    variables: Dict[str, Any],
+) -> str:
+    """
+    Render a SQL template file with the given variables (using Jinja-like syntax).
+    The template file should be a plain text file with placeholders in the format :<placeholder_name>.
+    """
+    with template_path.open("r") as f:
+        template = f.read()
+
+    for key, value in variables.items():
+        placeholder = f":{key}"
+        if placeholder in template:
+            template = template.replace(placeholder, str(value))
+        else:
+            raise ValueError(f"Placeholder {placeholder} not found in template.")
+
+    return template

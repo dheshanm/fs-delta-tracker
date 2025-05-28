@@ -146,6 +146,36 @@ class File(BaseModel):
         """
         Return the SQL query to create the 'files' table.
         """
+        enable_extension_query = """
+        CREATE EXTENSION IF NOT EXISTS ltree;
+        """
+
+        create_function_query = """
+        CREATE OR REPLACE FUNCTION filesystem.text_to_ltree(path TEXT)
+            RETURNS ltree
+            LANGUAGE sql
+            IMMUTABLE
+        AS $$
+        SELECT
+            -- join cleaned segments with “.”
+            array_to_string(
+            ARRAY(
+                SELECT regexp_replace(seg, '[^A-Za-z0-9_]', '', 'g')
+                FROM unnest(
+                    regexp_split_to_array( btrim(path, '/'), '/' )
+                    ) WITH ORDINALITY AS t(seg, idx)
+                WHERE idx < (
+                -- drop the very last element (file name)
+                SELECT max(idx)
+                FROM unnest(regexp_split_to_array(btrim(path,'/'),'/'))
+                    WITH ORDINALITY AS t2(_, idx)
+                )
+            ),
+            '.'
+            )::ltree
+        $$;
+        """
+
         sql_query = """
         CREATE TABLE IF NOT EXISTS filesystem.files (
             file_name TEXT NOT NULL,
@@ -156,15 +186,28 @@ class File(BaseModel):
             file_fingerprint TEXT NOT NULL,
             last_seen_scan INT NOT NULL REFERENCES filesystem.scan_runs(scan_id) ON UPDATE CASCADE,
             last_updated TIMESTAMPTZ NOT NULL DEFAULT now(),
+            path_ltree ltree GENERATED ALWAYS AS (
+                filesystem.text_to_ltree(file_path)
+            ) STORED,
             CONSTRAINT file_path_unique UNIQUE (file_path)
         );
         """
 
-        create_index_query = """
+        create_index_query_1 = """
         CREATE INDEX ON filesystem.files (last_seen_scan);
         """
 
-        return [sql_query, create_index_query]
+        create_index_query_2 = """
+        CREATE INDEX ON filesystem.files USING GIST (path_ltree);
+        """
+
+        return [
+            enable_extension_query,
+            create_function_query,
+            sql_query,
+            create_index_query_1,
+            create_index_query_2,
+        ]
 
     @staticmethod
     def drop_table_query() -> str:
