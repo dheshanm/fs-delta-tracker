@@ -256,7 +256,8 @@ class FileChanges(BaseModel):
         """
 
         sql_query = f"""
-            SELECT SUM(new_size_bytes) FROM filesystem.file_changes
+            SELECT SUM(ABS(COALESCE(new_size_bytes, 0) - COALESCE(old_size_bytes, 0)))
+            FROM filesystem.file_changes
             WHERE scan_id = {scan_id} AND change_type = '{change_type}';
         """
 

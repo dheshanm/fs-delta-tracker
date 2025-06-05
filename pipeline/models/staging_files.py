@@ -37,7 +37,7 @@ class StagingFile(BaseModel):
         """
         sql_query = """
         CREATE UNLOGGED TABLE filesystem.staging_files (
-        scan_id         INT         NOT NULL REFERENCES filesystem.scan_runs(scan_id),
+        scan_id         INT         NOT NULL REFERENCES filesystem.scan_runs(scan_id) ON DELETE CASCADE,
         file_path       TEXT        NOT NULL,
         file_name       TEXT        NOT NULL,
         file_type       TEXT        NOT NULL,

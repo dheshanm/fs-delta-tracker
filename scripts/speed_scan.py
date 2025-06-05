@@ -26,6 +26,7 @@ import io
 from datetime import datetime
 import multiprocessing
 from typing import Iterator, Optional, Tuple, Dict, Any
+import argparse
 
 import psycopg2
 from rich.logging import RichHandler
@@ -64,7 +65,7 @@ class IterableToFile(io.TextIOBase):
         self._it = iter(iterator)
         self._buf = ""
 
-    def readable(self):
+    def readable(self) -> bool:
         return True
 
     def read(self, size: Optional[int] = -1) -> str:
@@ -80,7 +81,7 @@ class IterableToFile(io.TextIOBase):
         result, self._buf = self._buf[:size], self._buf[size:]
         return result
 
-    def readline(self, limit=-1):
+    def readline(self, limit=-1) -> str:
         # read until next newline
         line = ""
         # first see if buf has a newline
@@ -123,14 +124,19 @@ def get_file_stat_line(file_info: Tuple[int, Path]) -> str:  # (scan_id, file_pa
     """
     scan_id, file_path = file_info
 
-    file_name = file_path.name
-    file_type = file_path.suffix if file_path.suffix else "unknown"
+    try:
+        file_name = file_path.name
+        file_type = file_path.suffix if file_path.suffix else "unknown"
 
-    file_stat = os.stat(file_path)
-    file_size_bytes = file_stat.st_size
-    # Convert Unix timestamp to datetime object, then to ISO 8601 string
-    file_mtime_dt = datetime.fromtimestamp(file_stat.st_mtime)
-    file_mtime_iso = file_mtime_dt.isoformat()
+        file_stat = os.stat(file_path)
+        file_size_bytes = file_stat.st_size
+        # Convert Unix timestamp to datetime object, then to ISO 8601 string
+        file_mtime_dt = datetime.fromtimestamp(file_stat.st_mtime)
+        file_mtime_iso = file_mtime_dt.isoformat()
+    except (FileNotFoundError, PermissionError):
+        # If the file is not found or we don't have permission, log the error
+        # logger.error(f"Error accessing file {file_path}: {e}")
+        return ""
 
     # Format the line as required
     return f"{scan_id}\t{file_name}\t{file_type}\t{file_path.as_posix()}\t{file_size_bytes}\t{file_mtime_iso}\n"
@@ -238,38 +244,38 @@ def bulk_copy_staging(
                 if processed_files_count % LOG_FREQUENCY == 0:
                     current_time = datetime.now()
                     total_elapsed_seconds = (
-                    current_time - function_start_time
+                        current_time - function_start_time
                     ).total_seconds()
 
                     # Time spent processing the current batch of LOG_FREQUENCY files
                     current_batch_duration_seconds = (
-                    total_elapsed_seconds - elapsed_seconds_at_last_log
+                        total_elapsed_seconds - elapsed_seconds_at_last_log
                     )
 
                     files_per_second_current_batch = (
-                    LOG_FREQUENCY / current_batch_duration_seconds
-                    if current_batch_duration_seconds > 0
-                    else 0  # Avoid division by zero
+                        LOG_FREQUENCY / current_batch_duration_seconds
+                        if current_batch_duration_seconds > 0
+                        else 0  # Avoid division by zero
                     )
 
                     total_files_per_second = (
-                    processed_files_count / total_elapsed_seconds
-                    if total_elapsed_seconds > 0
-                    else 0 # Avoid division by zero
+                        processed_files_count / total_elapsed_seconds
+                        if total_elapsed_seconds > 0
+                        else 0  # Avoid division by zero
                     )
 
                     total_elapsed_formatted = format_duration(total_elapsed_seconds)
                     current_batch_duration_formatted = format_duration(
-                    current_batch_duration_seconds
+                        current_batch_duration_seconds
                     )
 
                     log_message = (
-                    f"Processed {processed_files_count} files. "
-                    f"Current batch ({LOG_FREQUENCY} files): "
-                    f"{files_per_second_current_batch:.2f} f/s, "
-                    f"took {current_batch_duration_formatted}. "
-                    f"Total: {total_files_per_second:.2f} f/s, "
-                    f"elapsed: {total_elapsed_formatted}."
+                        f"Processed {processed_files_count} files. "
+                        f"Current batch ({LOG_FREQUENCY} files): "
+                        f"{files_per_second_current_batch:.2f} f/s, "
+                        f"took {current_batch_duration_formatted}. "
+                        f"Total: {total_files_per_second:.2f} f/s, "
+                        f"elapsed: {total_elapsed_formatted}."
                     )
                     logger.info(log_message)
 
@@ -304,7 +310,8 @@ def bulk_copy_staging(
 
                 # Log completion of COPY and total files processed by it
                 logger.info(
-                    f"COPY operation completed. {processed_files_count} file records prepared for commit."
+                    "COPY operation completed. "
+                    f"{processed_files_count} file records prepared for commit."
                 )
 
                 conn.commit()
@@ -371,7 +378,7 @@ def populate_file_changes(
     sql_templates_root = Path(repo_root) / sql_templates_root
     sql_templates_root = sql_templates_root.resolve()
 
-    sql_template = sql_templates_root / "process_staging.sql"
+    sql_template = sql_templates_root / "process_staging_v2.sql"
 
     if not sql_template.exists():
         logger.error(f"SQL template file not found: {sql_template}")
@@ -396,7 +403,9 @@ def populate_file_changes(
             show_commands=False,
         )
 
-    logger.info(f"File changes populated successfully. Took {timer.duration:.2f} seconds.")
+    logger.info(
+        f"File changes populated successfully. Took {timer.duration:.2f} seconds."
+    )
 
     statistics: Dict[str, Any] = {
         "timer_duration": timer.duration,
@@ -457,7 +466,26 @@ def finalize_scan(
 
 
 if __name__ == "__main__":
-    config_file = utils.get_config_file_path()
+    parser = argparse.ArgumentParser(
+        description="Scan a directory and track changes in files."
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        default=utils.get_config_file_path(),
+        help="Path to the configuration file.",
+    )
+    parser.add_argument(
+        "-d",
+        "--data-root",
+        type=Path,
+        help="Path to the root directory to scan. If not provided, will use 'data_root' from config file.",
+        required=True,
+    )
+    args = parser.parse_args()
+
+    config_file: Path = args.config
+    data_root: Path = args.data_root
     utils.configure_logging(
         config_file=config_file, module_name=MODULE_NAME, logger=logger
     )
@@ -465,14 +493,8 @@ if __name__ == "__main__":
     console.rule(f"[bold red]{MODULE_NAME}")
     logger.info(f"Using config file: {config_file}")
 
-    config_params = utils.config(
-        path=config_file,
-        section="crawler",
-    )
-
-    data_root = config_params.get("data_root")
     if data_root is None:
-        logger.error("data_root not found in config file.")
+        logger.error("data_root not specified.")
         sys.exit(1)
 
     data_root = Path(data_root).resolve()
